@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -46,11 +47,12 @@ namespace justbake.smartfoxhelper
     	#endregion
     	
     	#region Editor
-    	[SerializeField] protected UnityEvent<Room> _onLocalUserJoinRoom {get; set;}
-	    [SerializeField] protected UnityEvent<Room> _onLocalUserLeftRoom {get; set;}
-	    [SerializeField] protected UnityEvent<User, Room> _onRemoteUserJoinRoom {get; set;}
-	    [SerializeField] protected UnityEvent<User, Room> _onRemoteUserLeftRoom {get; set;}
-	    [SerializeField] protected UnityEvent<string> _onRoomJoinError {get;set;}
+    	[SerializeField] protected UnityEvent<Room> _onLocalUserJoinRoom;
+	    [SerializeField] protected UnityEvent<Room> _onLocalUserLeftRoom;
+	    [SerializeField] protected UnityEvent<User, Room> _onRemoteUserJoinRoom;
+	    [SerializeField] protected UnityEvent<User, Room> _onRemoteUserLeftRoom;
+	    [SerializeField] protected UnityEvent<string> _onRoomJoinError;
+	    [SerializeField] protected UnityEvent<string, object> _onRoomVariablesUpdate;
     	#endregion
     	
     	#region Monobehaviour
@@ -86,6 +88,7 @@ namespace justbake.smartfoxhelper
 	    public Action<User, Room> OnRemoteUserJoinRoom {get; set;}
 	    public Action<User, Room> OnRemoteUserLeftRoom {get; set;}
 	    public Action<string> OnRoomJoinError {get;set;}
+	    public Action<string, object> OnRoomVariablesUpdate {get;set;}
     	#endregion
     	
     	#region Methods
@@ -115,6 +118,11 @@ namespace justbake.smartfoxhelper
     			}
     		}
 	    }
+	    
+	    public virtual Room InstanciateRoom(int id, int maxUsers, string group, Dictionary<string, object> variables, List<User> users) 
+	    {
+	    	return new Room(id, maxUsers, variables, users);
+	    }
     	#endregion
     	
     	#endregion
@@ -126,7 +134,7 @@ namespace justbake.smartfoxhelper
     		
     		Debug.Log("Local user Joined room: " + sfsRoom.Id + " " + sfsRoom.Name);
     		
-	    	Room room = new Room(sfsRoom);
+	    	Room room = InstanciateRoom(sfsRoom.Id, sfsRoom.MaxUsers, sfsRoom.GroupId, sfsRoom.Variables(), sfsRoom.UsersList());
 	    	OnLocalUserJoinRoom?.Invoke(room);
     	}
     	
@@ -135,8 +143,8 @@ namespace justbake.smartfoxhelper
     		Sfs2X.Entities.Room sfsRoom = (Sfs2X.Entities.Room)evt.Params["room"];
 	    	Sfs2X.Entities.User sfsUser = (Sfs2X.Entities.User)evt.Params["user"];
 	    	
-	    	Room room = new Room(sfsRoom);
-	    	User user = new User(sfsUser);
+	    	Room room = InstanciateRoom(sfsRoom.Id, sfsRoom.MaxUsers, sfsRoom.GroupId, sfsRoom.Variables(), sfsRoom.UsersList());
+	    	User user = login.InstanciateUser(sfsUser.Id, sfsUser.Name, sfsUser.Variables());
 	    	
 	    	if(login.user.Equals(user)){
 	    		Debug.Log("Local user left room: " + sfsRoom.Id + " " + sfsRoom.Name);
@@ -155,8 +163,8 @@ namespace justbake.smartfoxhelper
 	    	
 	    	Debug.Log("Remote user: " + sfsUser.Id + " "  + sfsUser.Name + " joined room: " + sfsRoom.Id + " " + sfsRoom.Name);
 	    	
-	    	Room room = new Room(sfsRoom);
-	    	User user = new User(sfsUser);
+	    	Room room = null;
+	    	User user = null;// = new User(sfsUser);
 	    	OnRemoteUserLeftRoom?.Invoke(user, room);
     	}
     	
@@ -170,6 +178,24 @@ namespace justbake.smartfoxhelper
     	{
     		JoinRoom(0);
     	}
+    		
+    	private void OnRoomVariablesUpdateEvent(BaseEvent evt)
+    	{
+    		Sfs2X.Entities.Room sfsRoom = (Sfs2X.Entities.Room) evt.Params["room"];
+    		List<string> variableNames = (List<string>) evt.Params["changedVars"];
+    		
+    		foreach(Room room in login.user.joinedRooms)
+    		{
+    			if(room.id == sfsRoom.Id)
+    			{
+	    			foreach(string name in variableNames)
+	    			{
+    					room.VariablesUpdate?.Invoke(name, sfsRoom.GetVariable(name));
+	    			}
+    			}
+    		}
+    	}
+    	
     	#endregion
     	
     	#region SFSConnection Override
@@ -179,7 +205,7 @@ namespace justbake.smartfoxhelper
 		    connection.GetSfsClient().AddEventListener(SFSEvent.USER_EXIT_ROOM, OnUserLeftRoomEvent);
 			connection.GetSfsClient().AddEventListener(SFSEvent.USER_ENTER_ROOM, OnRemoteUserJoinedRoomEvent);
 		    connection.GetSfsClient().AddEventListener(SFSEvent.ROOM_JOIN_ERROR, OnJoinRoomError);
-		    
+		    connection.GetSfsClient().AddEventListener(SFSEvent.ROOM_VARIABLES_UPDATE, OnRoomVariablesUpdateEvent);
 	    }
 		
 	    protected void RemoveSmartFoxListeners()
@@ -191,6 +217,7 @@ namespace justbake.smartfoxhelper
 			    connection.GetSfsClient().RemoveEventListener(SFSEvent.USER_EXIT_ROOM, OnUserLeftRoomEvent);
 			    connection.GetSfsClient().RemoveEventListener(SFSEvent.USER_ENTER_ROOM, OnRemoteUserJoinedRoomEvent);
 			    connection.GetSfsClient().RemoveEventListener(SFSEvent.ROOM_JOIN_ERROR, OnJoinRoomError);
+			    connection.GetSfsClient().RemoveEventListener(SFSEvent.ROOM_VARIABLES_UPDATE, OnRoomVariablesUpdateEvent);
 		    }
 	    }
     	#endregion

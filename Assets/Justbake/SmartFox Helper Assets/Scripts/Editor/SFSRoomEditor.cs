@@ -7,15 +7,11 @@ namespace justbake.smartfoxhelper
 	public class SFSRoomEditor : Editor
 	{
 		SerializedProperty SFSRoomProperty;
-		string error;
-		int id;
+		int id = 0;
 		// This function is called when the object is loaded.
 		protected void OnEnable()
 		{
 			SFSRoomProperty = serializedObject.FindProperty("SFSRoom");
-			
-			SFSRoom _room = (target as SFSRoom);
-			_room.OnRoomJoinError += OnRoomJoinError;
 		}
         
 		public override void OnInspectorGUI()
@@ -26,7 +22,6 @@ namespace justbake.smartfoxhelper
 				
 				if(_room.connection.IsConnected && _room.login.IsLoggedIn)
 				{
-					Debug.Log( _room.login.user.joinedRooms.Count);
 					
 					foreach(Room room in _room.login.user.joinedRooms) {
 						EditorGUILayout.BeginHorizontal();
@@ -45,20 +40,11 @@ namespace justbake.smartfoxhelper
 						_room.JoinRoom(id);
 					}
 					EditorGUILayout.EndHorizontal();
-					
-					if(this.error != null) {
-						EditorGUILayout.TextArea(error);
-					}
 				}
 				
 			}
 			
 			DrawDefaultInspector();
-		}
-		
-		public void OnRoomJoinError(string error)
-		{
-			this.error = error;
 		}
     }
 }

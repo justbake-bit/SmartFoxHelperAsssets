@@ -7,8 +7,8 @@ namespace justbake.smartfoxhelper
 	public class SFSLoginEditor : Editor
 	{
 		SerializedProperty SFSLoginProperty;
-		string name;
-		string password;
+		string name = "";
+		string password = "";
 	    
 		// This function is called when the object is loaded.
 		protected void OnEnable()

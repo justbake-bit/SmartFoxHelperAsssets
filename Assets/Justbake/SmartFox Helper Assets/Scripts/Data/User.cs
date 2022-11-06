@@ -9,6 +9,15 @@ namespace justbake.smartfoxhelper
 	public class User: IEquatable<User>
 	{
 		#region private properties
+		/// <summary>
+		/// A dictionary to store the users variables
+		/// </summary>
+		protected Dictionary<string, object> _variables {get; private set;}
+		
+		/// <summary>
+		/// A list to store the rooms the user is joined in
+		/// </summary>
+		private List<Room> _joinedRooms;
 		#endregion
 		#region public properties
 		/// <summary>
@@ -22,7 +31,6 @@ namespace justbake.smartfoxhelper
 		/// <summary>
 		/// the private array to store the id of the rooms the user is joined in
 		/// </summary>
-		private List<Room> _joinedRooms;
 		public List<Room> joinedRooms {
 			get {
 				return _joinedRooms;
@@ -41,29 +49,31 @@ namespace justbake.smartfoxhelper
 		/// </summary>
 		/// <params>the id of the room the user left</params>
 		public Action<Room> LeftRoom {get; set;}
+		
+		/// <summary>
+		/// Event fired when the user's variable is updated or created on the server.
+		/// </summary>
+		/// <params>the name of the variable</params>
+		/// <params>the value of the variable</params>
+		public Action<string, object> VariablesUpdate;
 		#endregion
 		
 		#region constructors
 		/// <summary>
-		/// The basic constructor of a room needs an id.
+		/// The basic constructor of a user needs an id.
 		/// </summary>
-		/// <param name="id">the id of the room</param>
-		/// <param name="MaxUsers">maximum amout of users the room can have joined</param>
+		/// <param name="id">the id of the user</param>
+		/// <param name="name">the name of the user</param>
+		/// <param name="variables">the variables of the user</param>
 		/// <returns></returns>
-		public User(int id){
+		public User(int id, string name = "", Dictionary<string, object> variables=null)
+		{
 			this.id = id;
+			this.name = name;
+			if(variables == null) variables = new Dictionary<string, object>();
+			this._variables = variables;
 			_joinedRooms = new List<Room>();
-			
 			AddEventListeners();
-		}
-    	
-		/// <summary>
-		/// Constructs a room from a smartfox room
-		/// </summary>
-		/// <param name="room"></param>
-		/// <returns></returns>
-		public User(Sfs2X.Entities.User user): this(user.Id) {
-			this.name = user.Name;
 		}
 		#endregion
 		
@@ -72,6 +82,7 @@ namespace justbake.smartfoxhelper
 		{
 			JoinedRoom += OnUserJoinedRoom;
 			LeftRoom += OnUserLeftRoom;
+			VariablesUpdate += OnVariablesUpdate;
 		}
 		
 		public Room IsInRoom(int id)
@@ -101,6 +112,17 @@ namespace justbake.smartfoxhelper
 		private void OnUserLeftRoom(Room room)
 		{
 			_joinedRooms.Remove(room);
+		}
+		
+		private void OnVariablesUpdate(string name, object value)
+		{
+			if(_variables.ContainsKey(name))
+			{
+				_variables[name] = value;
+			}else
+			{
+				_variables.Add(name, value);
+			}
 		}
 		#endregion
 		

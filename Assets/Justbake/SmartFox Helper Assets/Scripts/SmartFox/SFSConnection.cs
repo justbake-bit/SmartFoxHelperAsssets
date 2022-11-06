@@ -154,6 +154,7 @@ namespace justbake.smartfoxhelper
 			}
 			else
 			{
+				Debug.Log("Connection failed; is the server running at all?");
 				OnConnectionFail?.Invoke("Connection failed; is the server running at all?");
 				_onConnectionFail?.Invoke("Connection failed; is the server running at all?");
 			}

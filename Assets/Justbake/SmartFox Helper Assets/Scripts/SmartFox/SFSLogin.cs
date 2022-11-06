@@ -1,5 +1,8 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Events;
@@ -8,6 +11,7 @@ using Sfs2X;
 using Sfs2X.Core;
 using Sfs2X.Logging;
 using Sfs2X.Entities;
+using Sfs2X.Entities.Variables;
 using Sfs2X.Requests;
 using Sfs2X.Util;
 
@@ -16,7 +20,7 @@ using justbake.smartfoxhelper.interfaces;
 namespace justbake.smartfoxhelper 
 {
 	[RequireComponent(typeof(SFSConnection))]
-	public class SFSLogin : MonoBehaviour, ILogin
+	public class SFSLogin: MonoBehaviour, ILogin
 	{
 		#region Singleton
     	
@@ -31,7 +35,7 @@ namespace justbake.smartfoxhelper
 			} 
 			else 
 			{ 
-				Instance = this; 
+				Instance = this;
 			}
 			
 			DontDestroyOnLoad(this);
@@ -50,6 +54,7 @@ namespace justbake.smartfoxhelper
 		[SerializeField] protected UnityEvent _onLogin;
 		[SerializeField] protected UnityEvent _onLogout;
 		[SerializeField] protected UnityEvent<string> _onLoginError;
+		[SerializeField] protected object userType;
     	#endregion
     	
     	#region Monobehaviour
@@ -101,12 +106,14 @@ namespace justbake.smartfoxhelper
 			}
 		}
     	
-		public void Login(string name) {
+		public void Login(string name)
+		{
 			_shouldWarn = false;
 			Login(name, "");
 		}
     	
-		public void Login(string name, string password) {
+		public void Login(string name, string password)
+		{
 			if(connection.IsConnected) {
 				if(connection.connectionSettings.usePassword) {
 					connection.GetSfsClient().Send(new LoginRequest(name, password));
@@ -125,6 +132,10 @@ namespace justbake.smartfoxhelper
 		public void Logout(){
 			connection.GetSfsClient().Send(new LogoutRequest());
 		}
+		
+		public virtual User InstanciateUser(int id, string name, Dictionary<string, object> variables) {
+			return new User(id, name, variables);
+		}
     	#endregion
     	
     	#endregion
@@ -132,10 +143,11 @@ namespace justbake.smartfoxhelper
     	#region smartfox event listeners
 		private void OnLoginEvent(BaseEvent evt)
 		{
-			Sfs2X.Entities.User user = (Sfs2X.Entities.User)evt.Params["user"];
-			Debug.Log("Loged in as " + user.Name);
+			Sfs2X.Entities.User sfsUser = (Sfs2X.Entities.User)evt.Params["user"];
+			Debug.Log("Loged in as " + sfsUser.Name);
 			_loggedIn = true;
-			_user = new User(user);
+			
+			_user = InstanciateUser(sfsUser.Id, sfsUser.Name, sfsUser.Variables());
 			OnLogin?.Invoke();
 			_onLogin?.Invoke();
 		}
@@ -165,7 +177,6 @@ namespace justbake.smartfoxhelper
     	#region SFSConnection Override
 		protected void AddSmartFoxListeners()
 		{
-			
 			connection.GetSfsClient().AddEventListener(SFSEvent.LOGIN, OnLoginEvent);			
 			connection.GetSfsClient().AddEventListener(SFSEvent.LOGOUT, OnLogoutEvent);
 			connection.GetSfsClient().AddEventListener(SFSEvent.LOGIN_ERROR, OnLoginErrorEvent);

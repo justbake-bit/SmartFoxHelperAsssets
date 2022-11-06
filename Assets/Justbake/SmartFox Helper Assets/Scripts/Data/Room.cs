@@ -16,6 +16,11 @@ namespace justbake.smartfoxhelper
 		/// the private array to store user information
 		/// </summary>
 		private List<User> _users;
+		
+		/// <summary>
+		/// A dictionary to store the rooms variables
+		/// </summary>
+		protected Dictionary<string, object> _variables {get; private set;}
 		#endregion
 		
 		#region public properties
@@ -63,6 +68,11 @@ namespace justbake.smartfoxhelper
 		/// </summary>
 		/// <param>the id of the user that left</param>
 		public Action<User> UserLeft {get; set;}
+		
+		/// <summary>
+		/// Event Fired When a room variable is updated
+		/// </summary>
+		public Action<string, object> VariablesUpdate {get; set;}
     	#endregion
     	
     	#region constructors
@@ -72,22 +82,16 @@ namespace justbake.smartfoxhelper
 		/// <param name="id">the id of the room</param>
 		/// <param name="MaxUsers">maximum amout of users the room can have joined</param>
 		/// <returns></returns>
-		public Room(int id, int MaxUsers){
+		public Room(int id, int MaxUsers, Dictionary<string, object> variables = null, List<User> users=null)
+		{
 			this.id = id;
 			this.MaxUsers = MaxUsers;
-			
-			_users = new List<User>(MaxUsers);
+			if(variables == null) variables = new Dictionary<string, object>();
+			if(users == null) users = new List<User>(MaxUsers);
+			_variables = variables;
+			_users = users;
 			AddEventListeners();
 		}
-    	
-		/// <summary>
-		/// Constructs a room from a smartfox room
-		/// </summary>
-		/// <param name="room"></param>
-		/// <returns></returns>
-		public Room(Sfs2X.Entities.Room room) : this(room.Id, room.MaxUsers){
-	    	this.name = room.Name;
-	    }
 	    #endregion
 	    
 		private void AddEventListeners()
@@ -95,6 +99,7 @@ namespace justbake.smartfoxhelper
 			CapacityChaged += OnCapacityChanged;
 			UserJoin += OnUserJoinedRoom;
 			UserLeft += OnUserLeftRoom;
+			VariablesUpdate += OnVariablesUpdate;
 		}
 	    
 		private void OnCapacityChanged(int newCapacity, int oldCapacity) 
@@ -113,6 +118,17 @@ namespace justbake.smartfoxhelper
 		{
 			_users.Remove(user);
 			user.LeftRoom?.Invoke(this);
+		}
+		
+		private void OnVariablesUpdate(string name, object value)
+		{
+			if(_variables.ContainsKey(name))
+			{
+				_variables[name] = value;
+			}else
+			{
+				_variables.Add(name, value);
+			}
 		}
 		
 		#region Equatable
